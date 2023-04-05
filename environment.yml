@@ -1,0 +1,13 @@
+name: ess412-512
+channels:
+  - conda-forge
+dependencies:
+  - python=3.9
+  - jupyterhub-singleuser=1.3
+  - jupyterlab=3.0
+  - matplotlib
+  - numpy
+  - pandas
+  - scipy
+  - pip
+  - obspy

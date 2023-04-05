@@ -1,0 +1,19 @@
+name: BuildAndTest
+on: [pull_request]
+jobs:
+  build-image-without-pushing:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout PR
+      uses: actions/checkout@v2
+
+    - name: Build Only
+      uses: jupyterhub/repo2docker-action@master
+      with:
+        NO_PUSH: 'true'
+        IMAGE_NAME: "uwessds/hps-image"
+
+    - name: Report Image Size and Conda Packages
+      run: |
+        docker images
+        docker run uwessds/hps-image conda list --export
