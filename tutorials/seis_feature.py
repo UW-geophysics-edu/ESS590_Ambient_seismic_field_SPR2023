@@ -4,6 +4,31 @@ import numpy as np
 import obspy
 import pandas as pd
 import tsfel
+
+def RSAM(data, samp_rate, datas, freq, Nm, N):
+    filtered_data = obspy.signal.filter.bandpass(data, freq[0], freq[1], samp_rate)
+    filtered_data = abs(filtered_data[:Nm])
+    datas.append(filtered_data.reshape(-1,N).mean(axis=-1)*1.e9) # we should remove the append
+    return(datas)
+
+def DSAR(data, samp_rate, datas, freqs_names, freqs, Nm, N):
+    # compute dsar
+    data = scipy.integrate.cumtrapz(data, dx=1./100, initial=0) # vel to disp
+    data -= np.mean(data) # detrend('mean')
+    j = freqs_names.index('mf')
+    mfd = obspy.signal.filter.bandpass(data, freqs[j][0], freqs[j][1], samp_rate)
+    mfd = abs(mfd[:Nm])
+    mfd = mfd.reshape(-1,N).mean(axis=-1)
+    j = freqs_names.index('hf')
+    hfd = obspy.signal.filter.bandpass(data, freqs[j][0], freqs[j][1], samp_rate)
+    hfd = abs(hfd[:Nm])
+    hfd = hfd.reshape(-1,N).mean(axis=-1)
+    dsar = mfd/hfd
+    datas.append(dsar)
+    return(datas, dsar)
+
+def nDSAR(dsar):
+    return dsar/scipy.stats.zscore(dsar)
     
 
 def compute_hibert(tr, env):
