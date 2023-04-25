@@ -27,8 +27,10 @@ def DSAR(data, samp_rate, datas, freqs_names, freqs, Nm, N):
     datas.append(dsar)
     return(datas, dsar)
 
-def nDSAR(dsar):
-    return dsar/scipy.stats.zscore(dsar)
+def nDSAR(datas,dsar):
+    ndsar = dsar/sc.stats.zscore(dsar)
+    datas.append(ndsar)
+    return(datas, ndsar)
     
 
 def compute_hibert(tr, env):
