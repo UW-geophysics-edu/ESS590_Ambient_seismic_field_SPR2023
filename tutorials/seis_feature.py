@@ -65,9 +65,26 @@ def compute_physical_features(tr, envfilter = True, freq_bands = [[0.1,1],[1,3],
     NATT = 62
     all_attr  = np.empty((1,NATT), dtype = float)
     
+    f11 = freq_bands[0][0]
+    f12 = freq_bands[0][1]
+    f21 = freq_bands[1][0]
+    f22 = freq_bands[1][1]
+    f31 = freq_bands[2][0]
+    f32 = freq_bands[2][1]
+    f41 = freq_bands[3][0]
+    f42 = freq_bands[3][1]
+    f51 = freq_bands[4][0]
+    f52 = freq_bands[4][1]
+    
     attributes = ['Window_Length', 'RappMaxMean', 'RappMaxMedian', 'AsDec','KurtoSig', 'KurtoEnv', 'SkewSig', 
-                  'SkewEnv', 'CorPeakNumber', 'Energy1/3Cor', 'Energy2/3Cor', 'int_ratio','E_0.1_1','E_1_3',
-                  'E_3_10', 'E_10_20','E_20_50','Kurt_0.1_1','Kurt_1_3','Kurt_3_10','Kurt_10_20','Kurt_20_50',
+                  'SkewEnv', 'CorPeakNumber', 'Energy1/3Cor', 'Energy2/3Cor', 'int_ratio','E_'+str(f11)+'_'+str(f12),'E_'+str(f21)+'_'+str(f22),
+                  'E_'+str(f31)+'_'+str(f32), 'E_'+str(f41)+'_'+str(f42),
+                  'E_'+str(f51)+'_'+str(f52),
+                  'Kurt_'+str(f11)+'_'+str(f12),
+                  'Kurt_'+str(f21)+'_'+str(f22),
+                  'Kurt_'+str(f31)+'_'+str(f32),
+                  'Kurt_'+str(f41)+'_'+str(f42),
+                  'Kurt_'+str(f51)+'_'+str(f52),
                   'RMSDecPhaseLine', 'MeanFFT','MaxFFT','FMaxFFT','MedianFFT','VarFFT','FCentroid','Fquart1','Fquart3','NPeakFFT',
                   'MeanPeaksFFT','E1FFT','E2FFT','E3FFT','E4FFT', 'Gamma1', 'Gamma2', 'Gamma','KurtoMaxDFT','KurtoMedianDFT','MaxOverMeanDFT',
                   'MaxOverMedianDFT','NbrPeaksMaxDFT','NbrPeaksMeanDFT','NbrPeaksMedianDFT','45/46','45/47','NbrPeaksCentralFreq','NbrPeaksMaxFreq',
@@ -328,7 +345,7 @@ def compute_physical_features(tr, envfilter = True, freq_bands = [[0.1,1],[1,3],
 
 
 
-def compute_features(slide_id, df_good, feature_type = 'physics based', envfilter = False, duration = 'on):
+def compute_features(slide_id, df_good, feature_type = 'physics based', envfilter = False, duration = 'on', window = 240):
     
     
     
@@ -396,9 +413,11 @@ def compute_features(slide_id, df_good, feature_type = 'physics based', envfilte
                                     
                                     starttime = tr.stats.starttime
                                     
-                                    
-                                    tr.trim(starttime, starttime + 239.95)           
                                     tr.remove_response(inv_stn)
+                
+                                    
+                                    #tr.trim(starttime, starttime + 239.95)           
+                                    
                                     tr.detrend()
                                     tr.taper(0.01)
                                     tr.filter('bandpass', freqmin = 0.5, freqmax = 10)
@@ -434,6 +453,9 @@ def compute_features(slide_id, df_good, feature_type = 'physics based', envfilte
                                         env = obspy.signal.filter.envelope(tr.data)
                                         sos = signal.butter(1, 0.01, 'lp', fs = tr.stats.sampling_rate,  output = 'sos')
                                         env_filt  = signal.sosfilt(sos, env)
+                                    
+                                    else:
+                                        tr.trim(starttime, starttime + window)
 
                                  
                   
