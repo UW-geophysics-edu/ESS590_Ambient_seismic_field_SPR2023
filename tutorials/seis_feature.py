@@ -31,7 +31,7 @@ def nDSAR(dsar):
     return dsar/scipy.stats.zscore(dsar)
     
     
-def compute_hibert(tr, envfilter = True):
+def compute_physical_features(tr, envfilter = True, freq_bands = [[0.1,1],[1,3],[3,10],[10,20],[20,50]], env_filt = [0.01]):
     
     ''' This functions computes features used by Hibert's research group.
     The list of features can be found at - https://www.sciencedirect.com/science/article/pii/S0377027316303948
@@ -47,6 +47,7 @@ def compute_hibert(tr, envfilter = True):
     
     
     from scipy import signal
+    from scipy.fft import fft, fftfreq
     import numpy as np
     from scipy.signal import hilbert
     
@@ -57,21 +58,21 @@ def compute_hibert(tr, envfilter = True):
     env = compute_envelope(tr.data)
     
     if envfilter == True:
-        sos = signal.butter(1, 0.01, 'lp', fs = tr.stats.sampling_rate,  output = 'sos')
+        sos = signal.butter(1, env_filt, 'lp', fs = tr.stats.sampling_rate,  output = 'sos')
         env  = signal.sosfilt(sos, env)
     
     
-    NATT = 57
+    NATT = 62
     all_attr  = np.empty((1,NATT), dtype = float)
     
-    attributes = ['Duration', 'RappMaxMean', 'RappMaxMedian', 'AsDec','KurtoSig', 'KurtoEnv', 'SkewSig', 
+    attributes = ['Window_Length', 'RappMaxMean', 'RappMaxMedian', 'AsDec','KurtoSig', 'KurtoEnv', 'SkewSig', 
                   'SkewEnv', 'CorPeakNumber', 'Energy1/3Cor', 'Energy2/3Cor', 'int_ratio','E_0.1_1','E_1_3',
                   'E_3_10', 'E_10_20','E_20_50','Kurt_0.1_1','Kurt_1_3','Kurt_3_10','Kurt_10_20','Kurt_20_50',
                   'RMSDecPhaseLine', 'MeanFFT','MaxFFT','FMaxFFT','MedianFFT','VarFFT','FCentroid','Fquart1','Fquart3','NPeakFFT',
                   'MeanPeaksFFT','E1FFT','E2FFT','E3FFT','E4FFT', 'Gamma1', 'Gamma2', 'Gamma','KurtoMaxDFT','KurtoMedianDFT','MaxOverMeanDFT',
                   'MaxOverMedianDFT','NbrPeaksMaxDFT','NbrPeaksMeanDFT','NbrPeaksMedianDFT','45/46','45/47','NbrPeaksCentralFreq','NbrPeaksMaxFreq',
-                  '50/51', 'DistMaxMeanFreqDTF','DistMaxMedianFreqDTF','DistQ2Q1DFT','DistQ3Q2DFT','DistQ3Q1DFT'
-                 ]
+                  '50/51', 'DistMaxMeanFreqDTF','DistMaxMedianFreqDTF','DistQ2Q1DFT','DistQ3Q2DFT','DistQ3Q1DFT',
+                  'Peak_Envelope_Amplitude', 'Average_Envelope_Amplitude','Envelope_Area', 'Envelope_Velocity', 'Envelope_Rise_Time']
     
     
     auto = np.correlate(tr.data, tr.data, 'same') ## autocorrelation function
@@ -79,7 +80,7 @@ def compute_hibert(tr, envfilter = True):
     t = tr.times()
     
     # family number 1: Based on waveforms. 
-    all_attr[0,0] = t[-1] - t[0]   # Duration
+    all_attr[0,0] = t[-1] - t[0]   # Window Length
     all_attr[0,1] = np.nanmax(env)/np.nanmean(env)   # Ratio of max and mean of envelope
     all_attr[0,2] = np.nanmax(env)/np.nanmedian(env) # Ratio of max and median of envelope.
     all_attr[0,3] = (t[np.argmax(env)] - t[0])/(t[-1]-t[np.argmax(env)]) # Ratio of ascending and descending times of envelope
@@ -103,7 +104,7 @@ def compute_hibert(tr, envfilter = True):
     # We are using a butterworth filter two corners 
     d = tr.data 
     try:
-        sos_0p1_1 = signal.butter(N = 2, Wn= [0.1,1], btype = 'bp', fs=tr.stats.sampling_rate, output='sos')
+        sos_0p1_1 = signal.butter(N = 2, Wn= [freq_bands[0][0],freq_bands[0][1]], btype = 'bp', fs=tr.stats.sampling_rate, output='sos')
         # filter = 0.1 - 1 Hz
         filtered_0p1_1 = signal.sosfilt(sos_0p_1, d)
         # filtering the waveforms
@@ -116,7 +117,7 @@ def compute_hibert(tr, envfilter = True):
     try:
         
          ## Filter between  1 - 3 Hz
-        sos_1_3 = signal.butter(N = 2, Wn= [1,3], btype = 'bp', fs=tr.stats.sampling_rate, output='sos')
+        sos_1_3 = signal.butter(N = 2, Wn= [freq_bands[1][0],freq_bands[1][1]], btype = 'bp', fs=tr.stats.sampling_rate, output='sos')
         # filter = 1 - 3 Hz 
         filtered_1_3 = signal.sosfilt(sos_1_3, d)
         # filtering the waveforms
@@ -129,7 +130,7 @@ def compute_hibert(tr, envfilter = True):
     try:
         
         ## Filter between 3 - 10 Hz
-        sos_3_10 =  signal.butter(N = 2, Wn= [3,10], btype = 'bp', fs=tr.stats.sampling_rate, output='sos')
+        sos_3_10 =  signal.butter(N = 2, Wn= [freq_bands[2][0],freq_bands[2][1]], btype = 'bp', fs=tr.stats.sampling_rate, output='sos')
         filtered_3_10 = signal.sosfilt(sos_3_10, d)
         env_3_10 = compute_envelope(filtered_3_10)
         all_attr[0,14] = np.log10(np.trapz(y = abs(env_3_10), x = tr.times()))
@@ -142,7 +143,7 @@ def compute_hibert(tr, envfilter = True):
     try:
         
         ## Filter between 10 - 20 Hz. 
-        sos_10_20 = signal.butter(N = 2, Wn= [10,20], btype = 'bp', fs=tr.stats.sampling_rate, output='sos')
+        sos_10_20 = signal.butter(N = 2, Wn= [freq_bands[3][0],freq_bands[3][1]], btype = 'bp', fs=tr.stats.sampling_rate, output='sos')
         filtered_10_20 = signal.sosfilt(sos_10_20, d)
         env_10_20 = compute_envelope(filtered_10_20)
         all_attr[0,15] = np.log10(np.trapz(y = abs(env_10_20), x = tr.times()))
@@ -154,7 +155,7 @@ def compute_hibert(tr, envfilter = True):
     try:
         
         ## Filter between 20. - 50 Hz
-        sos_20_50 = signal.butter(N = 2, Wn= [20,50], btype = 'bp', fs=tr.stats.sampling_rate, output='sos')
+        sos_20_50 = signal.butter(N = 2, Wn= [freq_bands[4][0],freq_bands[4][1]], btype = 'bp', fs=tr.stats.sampling_rate, output='sos')
         filtered_20_50 = signal.sosfilt(sos_20_50, d)
         env_20_50 = compute_envelope(filtered_20_50)
         all_attr[0,16] = np.log10(np.trapz(y = abs(env_20_50), x = tr.times()))
@@ -174,8 +175,8 @@ def compute_hibert(tr, envfilter = True):
     ## Spectral attributes
     
     
-    ft  = abs(np.fft.fft(tr.data))   ## Discrete Fast Fourtier Transform
-    freq = np.fft.fftfreq(len(tr.data), d= tr.stats.delta)  ## Obtaining the frequencies. 
+    ft  = abs(fft(tr.data))   ## Discrete Fast Fourtier Transform
+    freq = fftfreq(len(tr.data), d= tr.stats.delta)  ## Obtaining the frequencies. 
     ft = ft[0:len(ft)//2]  ## Because it is symmeteric across zero. 
     freq = freq[0:len(freq)//2]
     
@@ -301,46 +302,23 @@ def compute_hibert(tr, envfilter = True):
     all_attr[0,56] = np.nanmean(np.dot(f,Sq3)/np.sum(Sq3, axis=0) - np.dot(f,Sq1)/np.sum(Sq1, axis=0))
     # DistQ3Q1DFT - Mean distance between the median of the second and first quartile
 
-    feature = pd.DataFrame(data = all_attr, columns = attributes)
-    return feature
- 
-
-
-def compute_dammeier(tr, envfilter = False):
-    
-    ''' This functions computes features used by Dammeier et al. (2011) research group.
-    tr = Trace of the seismogram
-    env = Envelope of the trace
-    '''
-    from scipy import signal
-    import numpy as np
-    
-    env = compute_envelope(tr.data)
-    
-    if envfilter == True:
-        sos = signal.butter(1, 0.01, 'lp', fs = tr.stats.sampling_rate,  output = 'sos')
-        env  = signal.sosfilt(sos, env)
-    
-    NATT = 5
-    all_attr  = np.empty((1,NATT), dtype = float)
-    
-    attributes = ['Peak_Envelope_Amplitude', 'Average_Envelope_Amplitude','Envelope_Area', 'Envelope_Velocity', 'Envelope_Rise_Time']
+   
 
     t = tr.times()
     
-    all_attr[0,0] = np.nanmax(env) 
+    all_attr[0,57] = np.nanmax(env) 
     # Peak envelope amplitude
     
-    all_attr[0,1] = np.nanmean(env)
+    all_attr[0,58] = np.nanmean(env)
     # Mean envelope amplitude
     
-    all_attr[0,2] = metrics.auc(t,env)
+    all_attr[0,59] = metrics.auc(t,env)
     # Area under the curve of envelope
     
-    all_attr[0,3] = (metrics.auc(t,env))/(t[-1] - t[0])
+    all_attr[0,60] = (metrics.auc(t,env))/(t[-1] - t[0])
     # Area/Duration  = Velocity 
     
-    all_attr[0,4] = t[np.argmax(env)] - t[0]
+    all_attr[0,61] = t[np.argmax(env)] - t[0]
     # Risetime. 
     
     feature = pd.DataFrame(data = all_attr, columns = attributes)
@@ -350,23 +328,27 @@ def compute_dammeier(tr, envfilter = False):
 
 
 
-
-
-
-def compute_features(slide_id, df_good, feature_type = 'Dammeier', envfilter = True, duration = 'on'):
+def compute_features(slide_id, df_good, feature_type = 'physics based', envfilter = False, duration = 'on):
+    
+    
+    
+    
+    
     
     Features = pd.DataFrame([])
 
     for i in tqdm(range(len(slide_id))):
-        try:
+
         
             df_temp = df_good.iloc[np.where(df_good['eventid'] == slide_id[i])[0]]
-            if len(df_temp) != 0:
 
+            data_files = glob('../Data/Exotic_IRIS_4minutes/waveforms/'+str(slide_id[i])+'/*')
+            
+            if len(data_files) != 0:
 
-
+                
                 # we are extracting variables from the dataframe
-
+                snrs = df_temp['snr'].values
                 stns = df_temp['station'].values
                 types = df_temp['type'].values
                 vols = df_temp['volume'].values
@@ -374,22 +356,27 @@ def compute_features(slide_id, df_good, feature_type = 'Dammeier', envfilter = T
                 sources = df_temp['subtype'].values
 
                 # obtaining the stored waveforms
-                st = obspy.read('../waveforms/'+str(slide_id[i])+'/*')
+                st = obspy.read('../Data/Exotic_IRIS_4minutes/waveforms/'+str(slide_id[i])+'/*')
 
                 # obtaining the vertical component
                 st_z = st.select(channel = '*HZ')
+                
+                # obtaining the instrument response inventory
+                inv = obspy.read_inventory('../Data/Exotic_IRIS_4minutes/stations/'+str(slide_id[i])+'/*')
+
+                #print(inv)
+                
+                #removing the response 
+                #st_z.remove_response(inv)
+                
 
                 # detrending
-                st_z.detrend
+                #st_z.detrend()
 
                 # filtering
-                st_z.filter('bandpass', freqmin = 0.5, freqmax= 5)
+                #st_z.filter('bandpass', freqmin = 0.5, freqmax= 10)
 
-                # obtaining the instrument response inventory
-                inv = obspy.read_inventory('../stations/'+str(slide_id[i])+'/*')
 
-                #removing the response 
-                st_z.remove_response(inv)
 
 
                 ## setting the order of the waveforms
@@ -402,74 +389,80 @@ def compute_features(slide_id, df_good, feature_type = 'Dammeier', envfilter = T
 
                 for j in range(len(order)):
 
-                    try:
+                        try:
+                            
+                                    tr = st_z.select(station = stns[order[j]])[0]
+                                    inv_stn = inv.select(station = stns[order[j]])
+                                    
+                                    starttime = tr.stats.starttime
+                                    
+                                    
+                                    tr.trim(starttime, starttime + 239.95)           
+                                    tr.remove_response(inv_stn)
+                                    tr.detrend()
+                                    tr.taper(0.01)
+                                    tr.filter('bandpass', freqmin = 0.5, freqmax = 10)
 
-                        tr = st_z.select(station = stns[order[j]])[0]
-                        env = obspy.signal.filter.envelope(tr.data)
-                        sos = signal.butter(1, 0.01, 'lp', fs = tr.stats.sampling_rate,  output = 'sos')
-                        env_filt  = signal.sosfilt(sos, env)
+                                    env = obspy.signal.filter.envelope(tr.data)
+                                    sos = signal.butter(1, 0.02, 'lp', fs = tr.stats.sampling_rate,  output = 'sos')
+                                    env_filt  = signal.sosfilt(sos, env)
 
-                        if duration == 'on':
+
                                     sr = tr.stats.sampling_rate 
 
 
                                     # Defining the duration by 5-95% energy method. 
                                     # For this we define the starttime as coming at 50s, 10s before the defined starttimes in the IRIS catalog. 
 
-                                    x = tr.times()[int(50*sr):-1]
-                                    y = env_filt[int(50*sr):-1]
+                                    if duration == 'on':
+                                        ## This is the code for computing 5-95% duration but since we are concerned about initial 
+                                        ## four minutes of the data. Then it should not be a problem. 
+                                        x = tr.times()[int(50*sr):-1]
+                                        y = env_filt[int(50*sr):-1]
 
-                                    # integrating the envelope to define cumulative area
-                                    y_int = scipy.integrate.cumtrapz(y, x, initial = 0)
-
-
-
-                                    ####
-                                    te = x[np.where(y_int > np.percentile(y_int,95))[0][0]]
-                                    ts = x[np.where(y_int > np.percentile(y_int,5))[0][0]]
-
-                                    starttime = tr.stats.starttime
-                                    tr  = tr.trim(starttime+ts, starttime+te)
-                                    env = obspy.signal.filter.envelope(tr.data)
-                                    sos = signal.butter(1, 0.01, 'lp', fs = tr.stats.sampling_rate,  output = 'sos')
-                                    env_filt  = signal.sosfilt(sos, env)
-
-                                    
-                        if feature_type == 'Dammeier':
-                            df = compute_dammeier(tr, envfilter = False)
-
-                        if feature_type == 'Hibert':
-                            df = compute_hibert(tr, envfilter = False)
-
-                        if feature_type == 'tsfel':
-                            cfg = tsfel.get_features_by_domain()
-                            df = tsfel.time_series_features_extractor(cfg, tr.data, fs= sr, window_size=len(tr.data)) 
+                                        # integrating the envelope to define cumulative area
+                                        y_int = sc.integrate.cumtrapz(y, x, initial = 0)
 
 
 
-                        df['Event_ID'] = slide_id[i]
-                        df['Volume'] = vols[0]
-                        df['Event_Type'] = sources[order[j]]
-                        df['Station'] = stns[order[j]]
-                        df['Distance'] = dists[order[j]]
-                        df['Startttime'] = tr.stats.starttime
-                        df['Endtime'] = tr.stats.endtime
+                                        ####
+                                        te = x[np.where(y_int > np.percentile(y_int,95))[0][0]]
+                                        ts = x[np.where(y_int > np.percentile(y_int,5))[0][0]]
 
-                
-                        Features = pd.concat([Features,df])
-                    
-                    
-                    except:
-                        pass
-                    
-        except:
-            pass
+                                        starttime = tr.stats.starttime
+                                        tr  = tr.trim(starttime+ts, starttime+te)
+                                        env = obspy.signal.filter.envelope(tr.data)
+                                        sos = signal.butter(1, 0.01, 'lp', fs = tr.stats.sampling_rate,  output = 'sos')
+                                        env_filt  = signal.sosfilt(sos, env)
+
+                                 
+                  
+
+                                    if feature_type == 'physics based':
+                                        df = compute_physical_features(tr, envfilter = envfilter)
+
+                                    if feature_type == 'tsfel':
+                                        cfg = tsfel.get_features_by_domain()
+                                        df = tsfel.time_series_features_extractor(cfg, tr.data, fs= sr, window_size=len(tr.data)) 
+                                        
+
+
+                                    df['Event_ID'] = slide_id[i]
+                                    df['Volume'] = vols[0]
+                                    df['Event_Type'] = sources[order[j]]
+                                    df['Station'] = stns[order[j]]
+                                    df['Distance'] = dists[order[j]]
+                                    df['Startttime'] = tr.stats.starttime
+                                    df['Endtime'] = tr.stats.endtime
+                                    df['SNR'] = snrs[order[j]]
+
+
+                                    Features = pd.concat([Features,df])
+   
+                        except:
+                            pass
+        
+
 
                 
     return Features
-
-
-
-
-        
-    
