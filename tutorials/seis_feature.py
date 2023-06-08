@@ -29,6 +29,11 @@ def DSAR(data, samp_rate, datas, freqs_names, freqs, Nm, N):
 
 def nDSAR(dsar):
     return dsar/scipy.stats.zscore(dsar)
+
+def compute_envelope(signal):
+    analytic_signal = hilbert(signal)
+    amplitude_envelope = np.abs(analytic_signal)
+    return amplitude_envelope
     
     
 def compute_physical_features(tr, envfilter = True, freq_bands = [[0.1,1],[1,3],[3,10],[10,20],[20,50]], env_filt = [0.01]):
