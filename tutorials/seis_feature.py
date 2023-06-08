@@ -4,6 +4,16 @@ import numpy as np
 import obspy
 import pandas as pd
 import tsfel
+from scipy import signal
+from scipy.fft import fft, fftfreq
+import numpy as np
+from scipy.signal import hilbert
+from sklearn import metrics
+
+from scipy import signal
+from scipy.fft import fft, fftfreq
+import numpy as np
+from scipy.signal import hilbert
 
 def RSAM(data, samp_rate, datas, freq, Nm, N):
     filtered_data = obspy.signal.filter.bandpass(data, freq[0], freq[1], samp_rate)
@@ -30,11 +40,12 @@ def DSAR(data, samp_rate, datas, freqs_names, freqs, Nm, N):
 def nDSAR(dsar):
     return dsar/scipy.stats.zscore(dsar)
 
-def compute_envelope(signal):
-    analytic_signal = hilbert(signal)
-    amplitude_envelope = np.abs(analytic_signal)
-    return amplitude_envelope
+def compute_envelope(data):
+
     
+    analytic_signal = hilbert(data)
+    amplitude_envelope = np.abs(analytic_signal)
+    return amplitude_envelope  
     
 def compute_physical_features(tr, envfilter = True, freq_bands = [[0.1,1],[1,3],[3,10],[10,20],[20,50]], env_filt = [0.01]):
     
@@ -51,12 +62,9 @@ def compute_physical_features(tr, envfilter = True, freq_bands = [[0.1,1],[1,3],
     
     
     
-    from scipy import signal
-    from scipy.fft import fft, fftfreq
-    import numpy as np
-    from scipy.signal import hilbert
+
     
-    
+ 
 
   
     
